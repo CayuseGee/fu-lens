@@ -1,0 +1,288 @@
+<!doctype html>
+<!--
+  符镜 · 立直麻将符数识别（PWA）
+  页面结构：01 拍照识别（拍照/开始识别/裁剪 + 裁剪器）→
+            02 校对（和牌张/荣和自摸 → 牌库 → 场风/自风/本场 →
+               门清/立直/一发/抢杠/海底/岭上开关 → 听牌形）→
+            03 结果（宝牌 → 番数与点数 → 役种列表 → 点数 → 符数明细）
+  依赖模块均带 ?v=N 版本号（与 sw.js CACHE 同步递增，防止缓存错位）。
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#123c32" />
+    <meta name="description" content="拍照识别日本立直麻将和牌牌面，计算并拆解符数。" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=22" />
+    <title>符镜 · 立直麻将符数识别</title>
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="#top" aria-label="符镜首页">
+        <span class="brand-mark">符</span>
+        <span><strong>符镜</strong><small>FU LENS</small></span>
+      </a>
+      <button class="icon-button" id="resetButton" type="button" title="重新开始" aria-label="重新开始">↻</button>
+    </header>
+
+    <main id="top">
+      <section class="capture-band" aria-labelledby="captureTitle">
+        <div class="section-heading">
+          <div>
+            <span class="step">01 · 牌面</span>
+            <h1 id="captureTitle">拍照识别和牌</h1>
+          </div>
+          <span class="privacy-chip">本机不存档</span>
+        </div>
+
+        <div class="camera-frame" id="cameraFrame">
+          <img id="photoPreview" alt="待识别的麻将牌照片" hidden />
+          <div class="camera-empty" id="cameraEmpty">
+            <div class="focus-corners" aria-hidden="true"><span>🀇</span><span>🀙</span><span>🀐</span></div>
+            <strong>牌面照片</strong>
+            <small>支持相机或相册</small>
+          </div>
+          <div class="scan-line" id="scanLine" hidden></div>
+        </div>
+
+        <input id="photoInput" type="file" accept="image/*" capture="environment" hidden />
+        <input id="galleryInput" type="file" accept="image/*" hidden />
+        <div class="capture-actions">
+          <button class="primary-button" id="cameraButton" type="button"><span aria-hidden="true">◎</span> 拍照</button>
+          <button class="secondary-button" id="recognizeButton" type="button" disabled>开始识别</button>
+          <button class="secondary-button" id="cropButton" type="button" disabled>✂ 裁剪</button>
+        </div>
+        <details class="recognition-settings" id="recognitionSettings">
+          <summary>本地模型识别阈值调整</summary>
+          <div class="threshold-control">
+            <label for="recognitionThreshold">置信度阈值</label>
+            <output id="recognitionThresholdValue" for="recognitionThreshold">0.35</output>
+            <input id="recognitionThreshold" type="range" min="0.10" max="0.90" step="0.01" value="0.35" />
+            <button class="icon-button threshold-reset" id="resetRecognitionThreshold" type="button" title="恢复默认阈值 0.35" aria-label="恢复默认阈值 0.35">↻</button>
+          </div>
+        </details>
+        <div class="inline-status" id="recognitionStatus" role="status" aria-live="polite"></div>
+        <button class="text-button" id="manualButton" type="button">没有照片，手动录入</button>
+      </section>
+
+      <div id="workspace" hidden>
+        <section class="editor-band" aria-labelledby="editorTitle">
+          <div class="section-heading">
+            <div>
+              <span class="step">02 · 校对</span>
+              <h2 id="editorTitle">和牌结构</h2>
+            </div>
+            <span class="confidence" id="confidenceBadge" hidden></span>
+          </div>
+
+          <div class="recognized-strip" id="recognizedStrip" hidden>
+            <div class="recognized-meta">
+              <span>识别牌面</span>
+              <button class="text-button compact" id="replacePhotoButton" type="button">更换照片</button>
+            </div>
+            <div class="tile-row" id="recognizedTiles"></div>
+            <p class="model-note" id="modelNote" hidden></p>
+          </div>
+
+          <div class="field-block">
+            <div class="win-tile-row">
+              <span class="field-label">和牌张</span>
+              <button class="mahjong-tile win-tile" id="winTileButton" type="button" aria-label="和牌张，点击切换" title="点击切换和牌张">?</button>
+              <div class="segmented compact-control win-method" id="winMethodControl">
+                <button type="button" data-value="ron" class="active">荣和</button>
+                <button type="button" data-value="tsumo">自摸</button>
+              </div>
+            </div>
+            <div class="pool-strip" id="poolStrip" aria-label="牌库"></div>
+            <div class="pool-status-row">
+              <div class="pool-status" id="poolStatus"></div>
+              <button class="text-button compact" id="clearPoolButton" type="button">清空<br />牌库</button>
+            </div>
+            <div class="tile-picker pool-picker" id="poolPicker" aria-label="牌张选择"></div>
+            <div class="group-list" id="groupList"></div>
+            <button class="text-button" id="cycleDecompButton" type="button" hidden>⇄ 换一种拆分</button>
+          </div>
+
+          <div class="two-column">
+            <div class="field-block">
+              <span class="field-label">场风</span>
+              <div class="segmented wind-control" id="roundWindControl">
+                <button type="button" data-value="z1" class="active">东</button>
+                <button type="button" data-value="z2">南</button>
+                <button type="button" data-value="z3">西</button>
+                <button type="button" data-value="z4">北</button>
+              </div>
+            </div>
+            <div class="field-block">
+              <span class="field-label">自风</span>
+              <div class="segmented wind-control" id="seatWindControl">
+                <button type="button" data-value="z1" class="active">东</button>
+                <button type="button" data-value="z2">南</button>
+                <button type="button" data-value="z3">西</button>
+                <button type="button" data-value="z4">北</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-block honba-block">
+            <span class="field-label">本场数</span>
+            <div class="stepper" id="honbaStepper">
+              <button type="button" data-step="-1" aria-label="减少本场">−</button>
+              <span id="honbaValue">0</span>
+              <button type="button" data-step="1" aria-label="增加本场">＋</button>
+              <small>本场（连庄）</small>
+            </div>
+          </div>
+
+          <div class="switch-row">
+            <label class="switch-field">
+              <span><strong>门清</strong></span>
+              <input id="closedToggle" type="checkbox" checked />
+              <i aria-hidden="true"></i>
+            </label>
+            <label class="switch-field">
+              <span><strong>立直</strong></span>
+              <input id="riichiToggle" type="checkbox" />
+              <i aria-hidden="true"></i>
+            </label>
+          </div>
+          <div class="switch-row">
+            <label class="switch-field">
+              <span><strong>一发</strong></span>
+              <input id="ippatsuToggle" type="checkbox" />
+              <i aria-hidden="true"></i>
+            </label>
+            <label class="switch-field">
+              <span><strong>抢杠</strong></span>
+              <input id="chankanToggle" type="checkbox" />
+              <i aria-hidden="true"></i>
+            </label>
+          </div>
+          <div class="switch-row">
+            <label class="switch-field">
+              <span><strong>海底</strong></span>
+              <input id="haiteiToggle" type="checkbox" />
+              <i aria-hidden="true"></i>
+            </label>
+            <label class="switch-field">
+              <span><strong>岭上开花</strong></span>
+              <input id="rinshanToggle" type="checkbox" />
+              <i aria-hidden="true"></i>
+            </label>
+          </div>
+
+          <div class="field-block" id="waitBlock">
+            <span class="field-label">听牌形</span>
+            <div class="choice-grid" id="waitTypeControl">
+              <button type="button" data-value="ryanmen" class="active">两面</button>
+              <button type="button" data-value="shanpon">双碰</button>
+              <button type="button" data-value="tanki">单骑 <small>+2</small></button>
+              <button type="button" data-value="kanchan">嵌张 <small>+2</small></button>
+              <button type="button" data-value="penchan">边张 <small>+2</small></button>
+              <button type="button" data-value="special">特殊</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="result-band" aria-labelledby="resultTitle">
+          <div class="section-heading result-heading">
+            <div>
+              <span class="step light">03 · 结果</span>
+              <h2 id="resultTitle">番数与点数</h2>
+            </div>
+            <div class="fu-total"><strong id="totalHan">0</strong><span>番</span></div>
+          </div>
+
+          <div class="dora-block">
+            <span class="field-label light-label">宝牌</span>
+            <div class="stepper">
+              <button type="button" data-dora="-1" aria-label="减少宝牌">−</button>
+              <span id="doraValue">0</span>
+              <button type="button" data-dora="1" aria-label="增加宝牌">＋</button>
+              <small>（含里宝与拔北宝牌）</small>
+            </div>
+          </div>
+
+          <div class="yaku-list" id="yakuList"></div>
+          <div class="han-note" id="hanNote"></div>
+
+          <div class="points-card" id="pointsCard">
+            <div class="points-row" id="ronPointsRow">
+              <span>荣和</span>
+              <strong id="ronPoints">—</strong>
+            </div>
+            <div class="points-row" id="tsumoPointsRow">
+              <span>自摸</span>
+              <strong id="tsumoPoints">—</strong>
+            </div>
+          </div>
+
+          <div class="fu-breakdown">
+            <div class="fu-breakdown-heading">
+              <span class="field-label light-label">符数明细</span>
+              <span class="fu-sub-total">合计 <strong id="totalFu">30</strong> 符</span>
+            </div>
+            <div class="formula" id="formula"></div>
+            <div class="breakdown" id="breakdown"></div>
+            <p class="result-note" id="resultNote"></p>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <div class="capture-picker-backdrop" id="capturePickerBackdrop" hidden>
+      <div class="capture-picker" role="dialog" aria-label="选择照片来源">
+        <button type="button" id="captureTakeButton"><span aria-hidden="true">📷</span> 拍照</button>
+        <button type="button" id="captureGalleryButton"><span aria-hidden="true">🖼</span> 从相册选择</button>
+        <button class="cancel" type="button" id="capturePickerCancel">取消</button>
+      </div>
+    </div>
+
+    <div class="crop-backdrop" id="cropBackdrop" hidden>
+      <div class="crop-stage">
+        <div class="crop-head">
+          <strong>裁剪照片</strong>
+          <small>拖动边框或角点，聚焦需要识别的牌</small>
+        </div>
+        <div class="crop-canvas-wrap" id="cropCanvasWrap">
+          <img id="cropImage" alt="待裁剪照片" />
+          <div class="crop-box" id="cropBox"><i data-handle="nw"></i><i data-handle="ne"></i><i data-handle="sw"></i><i data-handle="se"></i></div>
+        </div>
+        <div class="crop-actions">
+          <button class="secondary-button" id="cropCancelButton" type="button">取消</button>
+          <button class="primary-button" id="cropConfirmButton" type="button">确认裁剪</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="win-picker-backdrop" id="winPickerBackdrop" hidden>
+      <div class="win-picker" role="dialog" aria-label="选择和牌张">
+        <div class="win-picker-head">
+          <strong>选择和牌张</strong>
+          <button class="icon-button small" id="winPickerClose" type="button" aria-label="关闭">×</button>
+        </div>
+        <div class="win-picker-tiles" id="winPickerTiles"></div>
+      </div>
+    </div>
+
+    <template id="groupTemplate">
+      <article class="group-row">
+        <div class="group-head">
+          <div class="group-index"></div>
+          <span class="group-type-badge"></span>
+          <label class="mini-toggle" hidden>
+            <input class="group-open" type="checkbox" />
+            <span>明</span>
+          </label>
+          <span class="group-fu"></span>
+        </div>
+        <div class="mini-tiles"></div>
+      </article>
+    </template>
+
+    <script src="/vendor/ort.min.js"></script>
+    <script type="module" src="/app.js?v=22"></script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "符镜 · 立直麻将符数识别",
+  "short_name": "符镜",
+  "description": "离线拍照识别日本立直麻将和牌牌面并计算符数",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f1e9",
+  "theme_color": "#123c32",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

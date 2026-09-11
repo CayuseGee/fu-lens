@@ -20,9 +20,11 @@
 
 ## 前端缓存
 
-修改前端时须同步递增三处 `?v=N`：`index.html` 资源链接、`app.js` 模块导入、`sw.js` CACHE/ASSETS。当前 v22。仅修改文档无需改版本。
+修改前端时须同步递增三处 `?v=N`：`index.html` 资源链接、`app.js` 模块导入、`sw.js` CACHE/ASSETS。当前 v23。仅修改文档无需改版本。
 
 ## 测试
+
+1.0.1 修复满贯以上本场漏算。`npm run test:honba` 需要下述 CDP 浏览器及本地服务，实际点击本场加减和荣和/自摸、亲家/子家切换，验证普通九莲和纯正九莲的 56 个点数显示场景。规则测试另含 128 组满贯以上结算组合。
 
 先运行 `npm run test`。Windows ZIP 回归需要 PowerShell；非 Windows 会显式跳过对应平台测试。
 

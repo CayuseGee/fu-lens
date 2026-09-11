@@ -435,6 +435,31 @@ test("立直必须门清：副露时立直失效（计算层防御）", () => {
   assert.ok(y2.yaku.some((x) => x.name === "立直"));
 });
 
+test("满贯以上本场加点覆盖亲子家、荣和自摸、多倍及累计役满", () => {
+  const cases = [
+    { han: 5, ko: 8000, oya: 12000 },
+    { han: 6, ko: 12000, oya: 18000 },
+    { han: 8, ko: 16000, oya: 24000 },
+    { han: 11, ko: 24000, oya: 36000 },
+    { han: 13, ko: 32000, oya: 48000 },
+    { han: 13, yakuman: true, ko: 32000, oya: 48000 },
+    { han: 26, yakuman: true, yakumanCount: 2, ko: 64000, oya: 96000 },
+    { han: 39, yakuman: true, yakumanCount: 3, ko: 96000, oya: 144000 },
+  ];
+  for (const c of cases) for (const isDealer of [false, true]) {
+    for (const winMethod of ["ron", "tsumo"]) for (const honba of [0, 1, 3, 99]) {
+      const points = calculatePoints({ ...c, fu: 30, isDealer, winMethod, honba });
+      const ron = isDealer ? c.oya : c.ko;
+      const tsumo = isDealer ? [ron / 3, ron / 3] : [ron / 4, ron / 4, ron / 2];
+      assert.equal(points.ron, ron);
+      assert.deepEqual(points.tsumo, tsumo);
+      assert.deepEqual(points.honbaBonus, honba === 0 ? null : {
+        ron: ron + 300 * honba, tsumo: tsumo.map((v) => v + 100 * honba),
+      }, JSON.stringify({ ...c, isDealer, winMethod, honba }));
+    }
+  }
+});
+
 test("副露减番：混一色副露 2番", () => {
   const h = hand({
     seatWind: "z2", roundWind: "z1",

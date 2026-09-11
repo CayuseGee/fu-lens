@@ -13,10 +13,10 @@
 import {
   calculateFu, groupFu, normalizeHand, decomposePool, detectWaitType,
   isTerminalOrHonorTile, pairFu, GROUP_TYPES,
-} from "./fu.js?v=22";
-import { TILE_LABELS, TILE_CODES, TILE_EMOJI } from "./tiles.js?v=22";
-import { detectLocal, annotateLocal, YOLO_ACCEPT_CONF, normalizeAcceptConfidence, isAndroidApp } from "./yolo.js?v=22";
-import { detectYaku, calculatePoints, isDealerByWinds } from "./yaku.js?v=22";
+} from "./fu.js?v=23";
+import { TILE_LABELS, TILE_CODES, TILE_EMOJI } from "./tiles.js?v=23";
+import { detectLocal, annotateLocal, YOLO_ACCEPT_CONF, normalizeAcceptConfidence, isAndroidApp } from "./yolo.js?v=23";
+import { detectYaku, calculatePoints, isDealerByWinds } from "./yaku.js?v=23";
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];

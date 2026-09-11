@@ -1,6 +1,6 @@
 {
   "name": "fu-lens",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "license": "MIT",
   "author": "CayuseGee",
@@ -15,6 +15,7 @@
     "start": "node server.mjs",
     "test": "node --test test/fu.test.js test/yaku.test.js test/yolo.test.js test/android-assets.test.js test/smoke.mjs",
     "test:runtime": "node test/offline-runtime.mjs",
+    "test:honba": "node test/honba-ui.mjs",
     "test:android": "node test/android-device.mjs",
     "android:apk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-apk.ps1"
   },

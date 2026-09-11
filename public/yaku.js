@@ -332,10 +332,12 @@ export function calculatePoints({ fu, han, winMethod, isDealer, sanma = false, h
     if (isYakumanBracket) {
       name = yakuman ? (mult > 1 ? `役满×${mult}` : "役满") : "累计役满";
     }
+    const tsumo = distributeTsumo(ron, isDealer);
     return {
       bracket: name,
       ron,
-      tsumo: distributeTsumo(ron, isDealer),
+      tsumo,
+      honbaBonus: calculateHonbaBonus(ron, tsumo, honba),
       yakuman: isYakumanBracket,
     };
   }
@@ -352,11 +354,14 @@ export function calculatePoints({ fu, han, winMethod, isDealer, sanma = false, h
   const tsumo = isDealer
     ? (typeof row[1] === "number" ? [row[1], row[1]] : distributeTsumo(ron, true))
     : (Array.isArray(row[1]) ? [row[1][0], row[1][1]] : distributeTsumo(ron, false));
-  // 本场数（连庄数）：荣和 放铳者 +300×n；自摸 每家 +100×n
-  const honbaBonus = honba > 0
+  return { ron, tsumo, bracket: null, honbaBonus: calculateHonbaBonus(ron, tsumo, honba) };
+}
+
+// 本场加点不随役满倍数翻倍：荣和 +300/本场，自摸每家 +100/本场。
+function calculateHonbaBonus(ron, tsumo, honba) {
+  return honba > 0
     ? { ron: ron + 300 * honba, tsumo: tsumo.map((v) => v + 100 * honba) }
     : null;
-  return { ron, tsumo, bracket: null, honbaBonus };
 }
 
 // 自摸分配（四麻标准）：子家 (子,子,亲)；亲家 (每家)

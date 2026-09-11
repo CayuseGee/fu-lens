@@ -94,7 +94,7 @@ try {
   assert.equal(report.uiRecognition.runtime, "1.17.3");
   await screenshot("android-recognition.png");
   report.thresholdCounts = await evaluate(`(async () => {
-    const {detectLocal} = await import('/yolo.js?v=22'); const rows = [];
+    const {detectLocal} = await import('/yolo.js?v=23'); const rows = [];
     for (const threshold of [0.1, 0.35, 0.9]) {
       const result = await detectLocal('data:image/png;base64,' + ${JSON.stringify(base64)}, threshold);
       rows.push({threshold, accepted:result.count, low:result.low_count, latency_ms:result.latency_ms});

@@ -34,8 +34,14 @@ function analyze(hand) {
   return { melds, pairTile, tiles, counts };
 }
 
-function sameSequence(a, b) {
-  return a.type === "sequence" && b.type === "sequence" && a.tiles[0] === b.tiles[0];
+export function sequencePairCount(groups) {
+  const counts = new Map();
+  for (const group of groups) {
+    if (group.type !== "sequence") continue;
+    const key = [...group.tiles].sort().join(",");
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return [...counts.values()].reduce((sum, n) => sum + Math.floor(n / 2), 0);
 }
 
 // 役种检测 → [{ name, han, yakuman }]
@@ -87,6 +93,12 @@ export function detectYaku(hand, { dora = 0, riichi = false, ippatsu = false, ch
       return { yaku, han: 13, yakuman: true, yakumanCount: 1 };
     }
     yaku.push({ name: "七对子", han: 2 });
+    if (tiles.every((t) => !isYaochu(t))) yaku.push({ name: "断幺九", han: 1 });
+    if (tiles.some(isHonor) && tiles.every(isYaochu)) yaku.push({ name: "混老头", han: 2 });
+    const suits = new Set(tiles.filter((t) => !isHonor(t)).map((t) => t[0]));
+    if (suits.size === 1) {
+      yaku.push(tiles.some(isHonor) ? { name: "混一色", han: 3 } : { name: "清一色", han: 6 });
+    }
     if (riichi) yaku.push({ name: "立直", han: 1 });
     if (ippatsu) yaku.push({ name: "一发", han: 1 });
     if (chankan) yaku.push({ name: "抢杠", han: 1 });
@@ -187,16 +199,11 @@ export function detectYaku(hand, { dora = 0, riichi = false, ippatsu = false, ch
   if (tiles.every((t) => !isYaochu(t))) yaku.push({ name: "断幺九", han: 1 });
 
   // 一杯口 / 二杯口（门清限定）
-  if (closed) {
-    const seqPairs = new Set();
-    for (let i = 0; i < seqs.length; i++) {
-      for (let j = i + 1; j < seqs.length; j++) {
-        if (sameSequence(seqs[i], seqs[j])) seqPairs.add(seqs[i].tiles[0]);
-      }
-    }
-    if (seqPairs.size >= 2) {
-      yaku.push({ name: "二杯口", han: 3 });
-    } else if (seqPairs.size === 1) {
+  if (closed && !melds.some((m) => m.open)) {
+    const seqPairs = sequencePairCount(seqs);
+    if (seqPairs >= 2) {
+      yaku.push({ name: "两杯口", han: 3 });
+    } else if (seqPairs === 1) {
       yaku.push({ name: "一杯口", han: 1 });
     }
   }
@@ -256,8 +263,8 @@ export function detectYaku(hand, { dora = 0, riichi = false, ippatsu = false, ch
   if (honorCount > 0 && tiles.every(isYaochu)) yaku.push({ name: "混老头", han: 2 });
 
   // 带幺九
-  const meldAllYaochu = melds.every((m) => m.type === "sequence" ? m.tiles.every(isYaochu) : isYaochu(m.tiles[0]));
-  if (meldAllYaochu && isYaochu(pairTile)) {
+  const meldAllYaochu = melds.every((m) => m.tiles.some(isYaochu));
+  if (seqs.length > 0 && meldAllYaochu && isYaochu(pairTile)) {
     if (honorCount === 0) yaku.push({ name: closed ? "纯全带幺九" : "纯全带幺九（副露）", han: closed ? 3 : 2 });
     else yaku.push({ name: closed ? "混全带幺九" : "混全带幺九（副露）", han: closed ? 2 : 1 });
   }

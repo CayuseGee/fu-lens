@@ -33,7 +33,7 @@ try {
     if (await evaluate("Boolean(document.querySelector('#poolPicker .mahjong-tile'))")) break;
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  assert.equal(await evaluate("document.querySelector('script[type=module]').getAttribute('src')"), "/app.js?v=23");
+  assert.equal(await evaluate("document.querySelector('script[type=module]').getAttribute('src')"), "/app.js?v=24");
   await click("#manualButton");
   await click("#clearPoolButton");
   for (const rank of "11123455678999") await click(`#poolPicker [data-code="m${rank}"]`);
@@ -58,7 +58,7 @@ try {
       }
     }
   }
-  console.log(JSON.stringify({ url, cacheVersion: 23, honbaUiCases: checked, passed: true }));
+  console.log(JSON.stringify({ url, cacheVersion: 24, honbaUiCases: checked, passed: true }));
 } finally {
   ws.close();
   await fetch(`${cdp}/json/close/${tab.id}`);

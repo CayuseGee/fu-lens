@@ -5,9 +5,9 @@
 // 策略：install 时预缓存 ASSETS（含 ORT WASM 与 ONNX 模型，约 47MB）；
 //       fetch 走 network-first，失败回退缓存 —— 手机断网仍可完整识别。
 // 服务端已设 Cache-Control: no-cache，配合版本化 URL 保证在线始终最新。
-const CACHE = "fu-lens-v23";
+const CACHE = "fu-lens-v24";
 const ASSETS = [
-  "/", "/styles.css?v=23", "/app.js?v=23", "/fu.js?v=23", "/tiles.js?v=23", "/yolo.js?v=23", "/yaku.js?v=23",
+  "/", "/styles.css?v=24", "/app.js?v=24", "/fu.js?v=24", "/tiles.js?v=24", "/yolo.js?v=24", "/yaku.js?v=24",
   "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png",
   "/vendor/ort.min.js", "/vendor/ort-wasm-simd-threaded.wasm",
   "/vendor/ort-wasm-simd-threaded.mjs", "/vendor/ort-wasm-simd-threaded.jsep.wasm",

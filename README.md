@@ -47,7 +47,9 @@ npm start
 
 ## Android 构建
 
-当前版本为 **1.0.1 / versionCode 6**，前端缓存版本 v23，最低 Android 8.0。预编译安装包如已发布，可在 [Releases](https://github.com/CayuseGee/fu-lens/releases) 查看。
+当前版本为 **1.0.2 / versionCode 7**，前端缓存版本 v24，最低 Android 8.0。安装包见 [Releases](https://github.com/CayuseGee/fu-lens/releases)。
+
+1.0.2 修复两杯口与七对子牌形冲突、七对子复合役和全带幺九判定。一杯口、两杯口仅门清成立，二者不重复计番；两杯口不与七对子复合，但可与清一色、纯全带幺九或混全带幺九复合。七对子可与清一色、混一色、断幺九、混老头及适用状态役复合，仍固定 25 符。
 
 Windows 构建需要 PowerShell、JDK 21、Android SDK Platform 36 和 Build Tools 36.0.0：
 
@@ -64,7 +66,7 @@ npm run test
 npm run test:runtime
 ```
 
-基础套件当前报告 54 项通过。注意：没有 CDP 9223 浏览器时，`smoke.mjs` 会打印 SKIP 并退出成功，不能据此声称浏览器测试已执行。`test:runtime` 需要真实浏览器和本地服务，用于 WASM 推理及页面回归；不是手机验收。`test:android` 需要调试 APK、ADB 和 WebView CDP，参见 [开发说明](docs/DEVELOPMENT.md)。最新手机拍照、识别准确率及完整离线流程由使用者自行测试，不承诺设备兼容性。
+基础套件当前报告 58 项通过。注意：没有 CDP 9223 浏览器时，`smoke.mjs` 会打印 SKIP 并退出成功，不能据此声称浏览器测试已执行。`test:runtime` 需要真实浏览器和本地服务，用于 WASM 推理及页面回归；不是手机验收。`test:yaku-ui` 实际录入 11 组复合役牌形并切换门清状态。`test:android` 需要调试 APK、ADB 和 WebView CDP，参见 [开发说明](docs/DEVELOPMENT.md)。最新手机拍照、识别准确率及完整离线流程由使用者自行测试，不承诺设备兼容性。
 
 ## 目录
 

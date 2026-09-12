@@ -1,7 +1,7 @@
 // 番数/点数引擎单元测试（含役满复合/累计役满/互斥约束用例）
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { detectYaku, calculatePoints, isDealerByWinds } from "../public/yaku.js";
+import { detectYaku, calculatePoints, isDealerByWinds, sequencePairCount } from "../public/yaku.js";
 import { decomposePool } from "../public/fu.js";
 
 const hand = (over = {}) => ({
@@ -14,6 +14,76 @@ const hand = (over = {}) => ({
   pair: { tile: "z5" },
   groups: [],
   ...over,
+});
+
+test("七对子复合清一色、混一色、断幺九、混老头及状态役，不复合面子役", () => {
+  const cases = [
+    ["m1 m2 m3 m4 m5 m8 m9", ["七对子", "清一色"], 8],
+    ["m1 m2 m4 m6 m8 z2 z7", ["七对子", "混一色"], 5],
+    ["m2 m3 p4 p5 s6 s7 s8", ["七对子", "断幺九"], 3],
+    ["m1 m9 p1 p9 s1 s9 z7", ["七对子", "混老头"], 4],
+    ["m1 m9 z1 z2 z3 z4 z7", ["七对子", "混老头", "混一色"], 7],
+  ];
+  for (const [codes, expected, han] of cases) {
+    const h = hand({ handType: "chiitoitsu", groups: codes.split(" ").map(t => ({ type: "pair", tiles: [t, t] })) });
+    const result = detectYaku(h);
+    assert.deepEqual(result.yaku.map(y => y.name).sort(), expected.sort());
+    assert.equal(result.han, han);
+    const bonus = detectYaku({ ...h, winMethod: "tsumo" }, { riichi: true, ippatsu: true, haitei: true, dora: 2 });
+    assert.equal(bonus.han, han + 6);
+  }
+});
+
+test("两杯口复合清一色、纯全带幺九或混全带幺九；不重复一杯口/七对子", () => {
+  for (const [codes, expected] of [
+    ["m1 m1 m2 m2 m3 m3 m7 m7 m8 m8 m9 m9 m5 m5", ["两杯口", "清一色"]],
+    ["m1 m1 m2 m2 m3 m3 m7 m7 m8 m8 m9 m9 m1 m1", ["两杯口", "清一色", "纯全带幺九"]],
+    ["m1 m1 m2 m2 m3 m3 p7 p7 p8 p8 p9 p9 z7 z7", ["两杯口", "混全带幺九"]],
+    ["m1 m1 m2 m2 m3 m3 m7 m7 m8 m8 m9 m9 z7 z7", ["两杯口", "混一色", "混全带幺九"]],
+    ["m1 m1 m2 m2 m3 m3 p7 p7 p8 p8 p9 p9 s9 s9", ["两杯口", "纯全带幺九"]],
+  ]) {
+    const solutions = decomposePool(codes.split(" ")).solutions;
+    const groups = solutions.find(g => sequencePairCount(g) === 2);
+    assert.ok(groups, codes);
+    const h = hand({ groups, waitType: "tanki" });
+    const result = detectYaku(h);
+    assert.deepEqual(result.yaku.map(y => y.name).sort(), expected.sort());
+    assert.equal(result.yaku.find(y => y.name === "两杯口").han, 3);
+    assert.ok(!detectYaku({ ...h, closed: false }).yaku.some(y => /杯口/.test(y.name)));
+    const exposed = structuredClone(h);
+    exposed.groups.find(g => g.type === "sequence").open = true;
+    assert.ok(!detectYaku(exposed).yaku.some(y => /杯口/.test(y.name)));
+  }
+});
+
+test("四组同顺计两杯口，三组同顺只计一杯口", () => {
+  const sequence = { type: "sequence", tiles: ["m2", "m3", "m4"] };
+  const pair = { type: "pair", tiles: ["p5", "p5"] };
+  const groups = [sequence, sequence, sequence, sequence, pair];
+  assert.equal(sequencePairCount(groups), 2);
+  assert.ok(detectYaku(hand({ groups })).yaku.some(y => y.name === "两杯口"));
+  const triple = [sequence, sequence, sequence, { type: "sequence", tiles: ["s5", "s6", "s7"] }, pair];
+  assert.equal(sequencePairCount(triple), 1);
+  assert.ok(detectYaku(hand({ groups: triple })).yaku.some(y => y.name === "一杯口"));
+  for (const original of [groups, triple]) {
+    const h = hand({ groups: structuredClone(original) });
+    assert.ok(!detectYaku({ ...h, closed: false }).yaku.some(y => /杯口/.test(y.name)));
+    h.groups[0].open = true;
+    assert.ok(!detectYaku(h).yaku.some(y => /杯口/.test(y.name)));
+    h.groups[0].open = false;
+    assert.ok(detectYaku(h).yaku.some(y => /杯口/.test(y.name)));
+  }
+});
+
+test("混老头对对和不叠加混全带幺九；有中张面子不能计全带", () => {
+  const groups = ["m1", "p9", "s1", "z7"].map(t => ({ type: "triplet", open: true, tiles: [t, t, t] }));
+  groups.push({ type: "pair", tiles: ["z3", "z3"] });
+  const result = detectYaku(hand({ groups, closed: false }));
+  assert.ok(result.yaku.some(y => y.name === "混老头"));
+  assert.ok(result.yaku.some(y => y.name === "对对和"));
+  assert.ok(!result.yaku.some(y => y.name.includes("全带")));
+  groups[0] = { type: "sequence", tiles: ["m2", "m3", "m4"] };
+  assert.ok(!detectYaku(hand({ groups })).yaku.some(y => y.name.includes("全带")));
 });
 
 function nineGates(suit, extra, win = extra) {

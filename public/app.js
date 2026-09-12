@@ -13,10 +13,10 @@
 import {
   calculateFu, groupFu, normalizeHand, decomposePool, detectWaitType,
   isTerminalOrHonorTile, pairFu, GROUP_TYPES,
-} from "./fu.js?v=23";
-import { TILE_LABELS, TILE_CODES, TILE_EMOJI } from "./tiles.js?v=23";
-import { detectLocal, annotateLocal, YOLO_ACCEPT_CONF, normalizeAcceptConfidence, isAndroidApp } from "./yolo.js?v=23";
-import { detectYaku, calculatePoints, isDealerByWinds } from "./yaku.js?v=23";
+} from "./fu.js?v=24";
+import { TILE_LABELS, TILE_CODES, TILE_EMOJI } from "./tiles.js?v=24";
+import { detectLocal, annotateLocal, YOLO_ACCEPT_CONF, normalizeAcceptConfidence, isAndroidApp } from "./yolo.js?v=24";
+import { detectYaku, calculatePoints, isDealerByWinds, sequencePairCount } from "./yaku.js?v=24";
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -103,7 +103,11 @@ function deriveHandType(pool) {
   if (pool.length !== 14) return "regular";
   const counts = new Map();
   for (const tile of pool) counts.set(tile, (counts.get(tile) || 0) + 1);
-  if (counts.size === 7 && [...counts.values()].every((n) => n === 2)) return "chiitoitsu";
+  if (counts.size === 7 && [...counts.values()].every((n) => n === 2)) {
+    // 两杯口与七对子不复合；可拆成两杯口时使用四面子结构计算符数与复合役。
+    if (decomposePool(pool).solutions.some((groups) => sequencePairCount(groups) === 2)) return "regular";
+    return "chiitoitsu";
+  }
   return "regular";
 }
 
@@ -163,7 +167,9 @@ function applyPool() {
     hand.pair.tile = [...counts.keys()][0] || "z1";
   } else {
     const { solutions } = decomposePool(pool);
-    hand.groups = solutions.length ? groupsFromMelds(solutions[0]) : [];
+    const ryanpeikouIndex = solutions.findIndex((groups) => sequencePairCount(groups) === 2);
+    decompIndex = ryanpeikouIndex >= 0 ? ryanpeikouIndex : 0;
+    hand.groups = solutions.length ? groupsFromMelds(solutions[decompIndex]) : [];
     syncPairFromGroups();
   }
   if (winTile && !pool.includes(winTile)) winTile = null;

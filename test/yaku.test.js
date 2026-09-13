@@ -155,6 +155,7 @@ test("九莲宝灯: reject exposed, quad, mixed, incomplete and invalid counts",
 
 test("国士无双：识别 + 役满点数", () => {
   const kokushi = hand({ handType: "kokushi", winMethod: "ron" });
+  kokushi.groups = "m1 m9 p1 p9 s1 s9 z1 z2 z3 z4 z5 z6 z7 z7".split(" ").map(t => ({ type: "single", tiles: [t] }));
   const y = detectYaku(kokushi);
   assert.equal(y.yakuman, true);
   assert.equal(y.han, 13);
@@ -297,6 +298,7 @@ test("字一色七对子 = 役满（优先级高于普通七对子）", () => {
 
 test("多役满复合：字一色 + 大三元 + 四暗刻 = 3 倍役满", () => {
   const h = hand({
+    winMethod: "tsumo", winTile: "z1",
     seatWind: "z2", roundWind: "z1",
     groups: [
       { type: "triplet", open: false, tiles: ["z1", "z1", "z1"] },
@@ -319,6 +321,7 @@ test("多役满复合：字一色 + 大三元 + 四暗刻 = 3 倍役满", () => 
 
 test("四暗刻单骑 = 2 倍役满（单骑听牌）", () => {
   const h = hand({
+    winTile: "z7",
     seatWind: "z2", roundWind: "z1",
     waitType: "tanki",
     groups: [
@@ -338,6 +341,7 @@ test("四暗刻单骑 = 2 倍役满（单骑听牌）", () => {
 
 test("四杠子役满（4 组暗杠 = 四杠子 + 四暗刻，双倍役满）", () => {
   const h = hand({
+    winMethod: "tsumo",
     seatWind: "z2", roundWind: "z1",
     groups: [
       { type: "quad", open: false, tiles: ["m1", "m1", "m1", "m1"] },

@@ -3,7 +3,7 @@
 //   detectYaku(hand, opts) 役种检测。opts: dora/riichi/ippatsu/chankan/haitei/rinshan
 //     - 普通役：立直/一发/门清自摸/平和/断幺/一杯口/二杯口/三色同顺刻/一气通贯/
 //       对对和/三暗刻/三杠子/小三元/混老头/带幺九/混一色/清一色/役牌/宝牌 等
-//     - 役满（收集式，可复合叠加）：字一色/清老头/绿一色/四杠子/大三元/
+//     - 役满（收集式，可复合叠加）：字一色/清老头/绿一色/四杠子/大三元/大四喜/小四喜/
 //       四暗刻（单骑=2 倍）/国士（十三面=2 倍，由 winTile 判定）
 //     - 特殊：手牌总番 ≥13 且无役满牌型 → 累计役满（点数同役满）
 //     - 防御性约束：抢杠>海底>岭上 三选一；立直要求门清
@@ -17,6 +17,16 @@ function isTerminal(tile) { return tile[1] === "1" || tile[1] === "9"; }
 function isYaochu(tile) { return isHonor(tile) || isTerminal(tile); }
 function isDragon(tile) { return tile === "z5" || tile === "z6" || tile === "z7"; }
 function isWind(tile) { return tile[0] === "z" && tile[1] !== "5" && tile[1] !== "6" && tile[1] !== "7"; }
+
+function validMeld(meld) {
+  const tiles = meld.tiles || [];
+  if (meld.type === "triplet" || meld.type === "quad") {
+    return tiles.length === (meld.type === "quad" ? 4 : 3) && tiles.every(t => t === tiles[0]);
+  }
+  if (meld.type !== "sequence" || tiles.length !== 3 || isHonor(tiles[0])) return false;
+  const sorted = [...tiles].sort();
+  return sorted.every((t, i) => t === sorted[0][0] + (Number(sorted[0][1]) + i));
+}
 
 // 手牌拆解：groups（含 pair 组）→ 统计
 function analyze(hand) {
@@ -48,6 +58,9 @@ export function sequencePairCount(groups) {
 export function detectYaku(hand, { dora = 0, riichi = false, ippatsu = false, chankan = false, haitei = false, rinshan = false } = {}) {
   const yaku = [];
   const { melds, pairTile, tiles, counts } = analyze(hand);
+  if (!tiles.every(t => /^(?:[mps][1-9]|z[1-7])$/.test(t))) {
+    return { yaku, han: 0, yakuman: false, incomplete: true };
+  }
 
   // 计算层防御：抢杠/海底/岭上开花不可能同时发生（UI 已约束，此处兜底，优先级 抢杠 > 海底 > 岭上）
   if (chankan) {
@@ -67,6 +80,10 @@ export function detectYaku(hand, { dora = 0, riichi = false, ippatsu = false, ch
     const tileCounts = new Map();
     for (const t of kokushiTiles) tileCounts.set(t, allTiles.filter((x) => x === t).length);
     const listening = allTiles.length === 13;
+    if (![13, 14].includes(allTiles.length) || !allTiles.every(t => kokushiTiles.includes(t))
+        || !kokushiTiles.every(t => tileCounts.get(t) >= 1 && tileCounts.get(t) <= 2)) {
+      return { yaku, han: 0, yakuman: false, incomplete: true };
+    }
     // 十三面：和牌时去掉和牌张后 13 种各 1；听牌时 13 张恰好 13 种各 1
     const thirteenFace = listening
       ? kokushiTiles.every((t) => tileCounts.get(t) === 1)
@@ -87,6 +104,9 @@ export function detectYaku(hand, { dora = 0, riichi = false, ippatsu = false, ch
     };
   }
   if (hand.handType === "chiitoitsu") {
+    if (tiles.length !== 14 || counts.size !== 7 || [...counts.values()].some(n => n !== 2)) {
+      return { yaku, han: 0, yakuman: false, incomplete: true };
+    }
     // 特殊情况：字牌七对子 = 字一色（役满），优先级高于普通七对子
     if (tiles.every(isHonor)) {
       yaku.push({ name: "字一色（七对子）", han: 13, yakuman: true, mult: 1 });
@@ -108,7 +128,11 @@ export function detectYaku(hand, { dora = 0, riichi = false, ippatsu = false, ch
     if (dora > 0) yaku.push({ name: "宝牌", han: dora });
     return { yaku, han: yaku.reduce((s, y) => s + y.han, 0), yakuman: false };
   }
-  if (melds.length !== 4) {
+  const pairGroups = (hand.groups || []).filter(g => g.type === "pair");
+  if (melds.length !== 4 || !melds.every(validMeld) || !pairTile || pairGroups.length > 1
+      || pairGroups.some(g => g.tiles.length !== 2 || !g.tiles.every(t => t === pairTile))
+      || !tiles.every(t => /^(?:[mps][1-9]|z[1-7])$/.test(t))
+      || [...counts.values()].some(n => n > 4)) {
     return { yaku, han: 0, yakuman: false, incomplete: true };
   }
 
@@ -118,7 +142,9 @@ export function detectYaku(hand, { dora = 0, riichi = false, ippatsu = false, ch
   const allSequences = meldTypes.every((t) => t === "sequence");
   const quads = meldTypes.filter((t) => t === "quad").length;
   const triplets = melds.filter((m) => m.type !== "sequence");
-  const darkMelds = melds.filter((m) => !m.open && m.type !== "sequence");
+  // 荣和补成的刻子不算暗刻；暗杠仍算暗刻。
+  const darkMelds = melds.filter((m) => !m.open && m.type !== "sequence"
+    && !(!tsumo && m.type === "triplet" && m.tiles[0] === hand.winTile));
   const seqs = melds.filter((m) => m.type === "sequence");
   const suitsUsed = new Set(tiles.filter((t) => !isHonor(t)).map((t) => t[0]));
   const honorCount = tiles.filter(isHonor).length;
@@ -147,10 +173,17 @@ export function detectYaku(hand, { dora = 0, riichi = false, ippatsu = false, ch
   // 四杠子
   if (quads === 4) yakuman.push({ name: "四杠子", mult: 1 });
   // 大三元：z5/z6/z7 三组刻子
-  if (["z5", "z6", "z7"].every((d) => counts.get(d) >= 3)) yakuman.push({ name: "大三元", mult: 1 });
+  const tripletTiles = new Set(triplets.map(m => m.tiles[0]));
+  if (["z5", "z6", "z7"].every(d => tripletTiles.has(d))) yakuman.push({ name: "大三元", mult: 1 });
+  const windMelds = ["z1", "z2", "z3", "z4"].filter(t => tripletTiles.has(t));
+  if (windMelds.length === 4) yakuman.push({ name: "大四喜", mult: 2 });
+  else if (windMelds.length === 3 && isWind(pairTile) && !tripletTiles.has(pairTile)) {
+    yakuman.push({ name: "小四喜", mult: 1 });
+  }
   // 四暗刻 / 四暗刻单骑（单骑听牌 = 双倍）
-  if (darkMelds.length === 4) {
-    if (hand.waitType === "tanki") yakuman.push({ name: "四暗刻单骑", mult: 2 });
+  const wonOnPair = hand.winTile === pairTile;
+  if (closed && darkMelds.length === 4 && (tsumo || wonOnPair)) {
+    if (wonOnPair) yakuman.push({ name: "四暗刻单骑", mult: 2 });
     else yakuman.push({ name: "四暗刻", mult: 1 });
   }
   if (yakuman.length) {

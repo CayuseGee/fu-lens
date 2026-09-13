@@ -34,7 +34,7 @@ try {
     if (await evaluate("Boolean(document.querySelector('#poolPicker .mahjong-tile'))")) break;
     await new Promise(resolve => setTimeout(resolve, 100));
   }
-  assert.equal(await evaluate("document.querySelector('script[type=module]').getAttribute('src')"), "/app.js?v=24");
+  assert.equal(await evaluate("document.querySelector('script[type=module]').getAttribute('src')"), "/app.js?v=25");
   const cases = [
     [pairs("m1 m2 m3 m7 m8 m9 m5"), ["两杯口", "清一色"], 9, false],
     ["m1 m1 m1 m1 m2 m2 m3 m3 m7 m7 m8 m8 m9 m9".split(" "), ["两杯口", "清一色", "纯全带幺九"], 12, false],
@@ -68,7 +68,51 @@ try {
       assert.ok((await evaluate("document.querySelector('#yakuList').textContent")).includes(names[0]));
     }
   }
-  console.log(JSON.stringify({ url, cacheVersion: 24, yakuUiCases: cases.length, closedToggleVerified: true, passed: true }));
+  let yakumanUiCases = 0;
+  for (const [melds, pair, baseNames, baseMult, quads] of [
+    [["z1", "z2", "z3", "z4"], "z5", ["字一色", "大四喜"], 3, false],
+    [["z1", "z2", "z3", "z5"], "z4", ["字一色", "小四喜"], 2, false],
+    [["z1", "z5", "z6", "z7"], "z2", ["字一色", "大三元"], 2, false],
+    [["m1", "m9", "p1", "p9"], "s1", ["清老头"], 1, false],
+    [["s2", "s4", "s6", "s8"], "z6", ["绿一色"], 1, false],
+    [["z1", "z2", "z3", "z4"], "z5", ["字一色", "大四喜", "四杠子"], 4, true],
+  ]) {
+    await click("#manualButton");
+    await click("#clearPoolButton");
+    for (const tile of [...melds.flatMap(t => Array(quads ? 4 : 3).fill(t)), pair, pair]) {
+      await click(`#poolPicker [data-code="${tile}"]`);
+    }
+    for (const win of [pair, ...(quads ? [] : [melds[0]])]) {
+      await click("#winTileButton");
+      await click(`#winPickerTiles [data-code="${win}"]`);
+      for (const method of ["ron", "tsumo"]) for (const closed of [true, false]) {
+        await click(`#winMethodControl [data-value="${method}"]`);
+        if (await evaluate("document.querySelector('#closedToggle').checked") !== closed) await click("#closedToggle");
+        const expectedNames = [...baseNames];
+        let mult = baseMult;
+        if (closed && (method === "tsumo" || win === pair)) {
+          expectedNames.push(win === pair ? "四暗刻单骑" : "四暗刻");
+          mult += win === pair ? 2 : 1;
+        }
+        const actualNames = await evaluate("[...document.querySelectorAll('#yakuList .yaku-name')].map(e => e.textContent)");
+        assert.deepEqual(actualNames.sort(), expectedNames.sort());
+        assert.equal(await evaluate("Number(document.querySelector('#totalHan').textContent)"), mult * 13);
+        for (const seat of ["z1", "z2"]) {
+          await click(`#seatWindControl [data-value="${seat}"]`);
+          for (const honba of [0, 1, 0]) {
+            const current = await evaluate("Number(document.querySelector('#honbaValue').textContent)");
+            if (current !== honba) await click(`#honbaStepper [data-step="${honba > current ? 1 : -1}"]`);
+            const actual = await evaluate(`document.querySelector('${method === "ron" ? "#ronPoints" : "#tsumoPoints"}').textContent`);
+            const expected = method === "ron" ? (mult * (seat === "z1" ? 48000 : 32000) + honba * 300).toLocaleString("zh-CN")
+              : seat === "z1" ? String(mult * 16000 + honba * 100) : `${mult * 8000 + honba * 100} / ${mult * 16000 + honba * 100}`;
+            assert.equal(actual, expected);
+          }
+        }
+        yakumanUiCases++;
+      }
+    }
+  }
+  console.log(JSON.stringify({ url, cacheVersion: 25, yakuUiCases: cases.length, yakumanUiCases, closedToggleVerified: true, passed: true }));
 } finally {
   ws.close();
   await fetch(`${cdp}/json/close/${tab.id}`);

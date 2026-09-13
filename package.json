@@ -1,6 +1,6 @@
 {
   "name": "fu-lens",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "license": "MIT",
   "author": "CayuseGee",
@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "node --watch server.mjs",
     "start": "node server.mjs",
-    "test": "node --test test/fu.test.js test/yaku.test.js test/yolo.test.js test/android-assets.test.js test/smoke.mjs",
+    "test": "node --test test/fu.test.js test/yaku.test.js test/yakuman.test.js test/yolo.test.js test/android-assets.test.js test/smoke.mjs",
     "test:runtime": "node test/offline-runtime.mjs",
     "test:honba": "node test/honba-ui.mjs",
     "test:yaku-ui": "node test/yaku-ui.mjs",

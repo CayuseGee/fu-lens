@@ -129,7 +129,7 @@ try {
   report.retrySuccessful = true;
   const fixture = "data:image/png;base64," + (await readFile("test/detected-final.png")).toString("base64");
   report.thresholdCounts = await evaluate(`(async () => {
-    const {detectLocal} = await import('/yolo.js?v=24'); const rows = [];
+    const {detectLocal} = await import('/yolo.js?v=25'); const rows = [];
     for (const threshold of [0.1, 0.35, 0.9]) {
       const result = await detectLocal(${JSON.stringify(fixture)}, threshold);
       rows.push({threshold, accepted:result.count, low:result.low_count});

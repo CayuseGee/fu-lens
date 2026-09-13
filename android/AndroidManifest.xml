@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.fulens.app" android:versionCode="7" android:versionName="1.0.2">
+    package="com.fulens.app" android:versionCode="8" android:versionName="1.0.3">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <queries><intent><action android:name="android.media.action.IMAGE_CAPTURE" /></intent></queries>
